@@ -1,4 +1,6 @@
+#include "hw.h"
 #include "sched.h"
+
 struct ctx_s ctx_ping;
 struct ctx_s ctx_pong;
 struct ctx_s ctx_init;
@@ -21,6 +23,5 @@ int kmain( void ) {
   init_ctx(&ctx_pong, pong, STACK_SIZE);
   current_ctx = &ctx_init;
   switch_to(&ctx_ping);
-  /* Pas atteignable vues nos 2 fonctions */
   return(0);
 }
