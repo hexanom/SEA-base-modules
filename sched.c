@@ -2,27 +2,23 @@
 #include "phyAlloc.h"
 
 void init_ctx(struct ctx_s* ctx, func_t f, unsigned int stack_size) {
-  (*ctx).pc = f;
-  (*ctx).sp = phyAlloc_alloc(STACK_SIZE);
+  ctx->lr = (unsigned int)f;
+  ctx->sp = ((unsigned int)phyAlloc_alloc(STACK_SIZE)) + STACK_SIZE - 1 - 13;
 }
 
 void __attribute__ ((naked)) switch_to(struct ctx_s* ctx) {
-  unsigned int varSP, varPC;
 
   // 1. Save context
-  __asm("mov %0, sp" : "=r"(varSP)); // sp -> varSP
-  __asm("mov %0, lr" : "=r"(varPC)); // lr -> varPC
-
-  current_ctx->sp = varSP;
-  current_ctx->pc = varPC;
+  __asm("push {r0-r12}");
+  __asm("mov %0, sp" : "=r"(current_ctx->sp));
+  __asm("mov %0, lr" : "=r"(current_ctx->lr));
 
   // 2. Change current context
   current_ctx = ctx;
 
   // 3. Restore context
-  varSP = current_ctx->sp;
-  varPC = current_ctx->pc;
-
-  __asm("mov sp, %0" : : "r"(varSP)); // varSP -> sp
-  __asm("mov pc, %0" : : "r"(varPC)); // varPC -> pc
+  __asm("mov sp, %0" : : "r"(current_ctx->sp));
+  __asm("mov lr, %0" : : "r"(current_ctx->lr));
+  __asm("pop {r0-r12}");
+  __asm("bx lr");
 }
