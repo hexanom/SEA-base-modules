@@ -1,16 +1,23 @@
 #include "sched.h"
 #include "phyAlloc.h"
+#include "hw.h"
+
+#define WORD_SIZE 4
+#define SAVED_REGISTERS 13
+#define CPSR_INIT 0x13
 
 struct pcb_s* first_pcb = NULL;
 struct pcb_s* last_pcb = NULL;
 struct pcb_s* current_process = NULL;
 
 void init_pcb(struct pcb_s* pcb, func_t entry_point, void* args) {
-  pcb->lr = (unsigned int)&start_current_process;
   pcb->sp = ((unsigned int)phyAlloc_alloc(STACK_SIZE));
   pcb->sp += STACK_SIZE;
-  pcb->sp -= 4; 
-  pcb->sp -= 13*4;
+  pcb->sp -= WORD_SIZE;
+  *((int*) pcb->sp) = CPSR_INIT; // cpsr
+  pcb->sp -= WORD_SIZE;
+  *((int*) pcb->sp) = (unsigned int)&start_current_process; // lr
+  pcb->sp -= SAVED_REGISTERS * WORD_SIZE;
   
   pcb->entry_point = entry_point;
   pcb->args = args;
@@ -44,23 +51,32 @@ void start_sched() {
   init_pcb(kmain_pcb, NULL, NULL);
   kmain_pcb->next_pcb = first_pcb;
   current_process = kmain_pcb;
+  set_tick_and_enable_timer();
+  ENABLE_IRQ();
 }
 
-void __attribute__ ((naked)) ctx_switch() {
+void ctx_switch_from_irq() {
+  DISABLE_IRQ();
+
+  __asm("sub lr, lr, #4");
+  __asm("srsdb sp!, #0x13");
+  __asm("cps #0x13");
 
   __asm("push {r0-r12}");
   __asm("mov %0, sp" : "=r"(current_process->sp));
-  __asm("mov %0, lr" : "=r"(current_process->lr));
   current_process->state = READY;
   
   elect();
   
   current_process->state = RUNNING;
   __asm("mov sp, %0" : : "r"(current_process->sp));
-  __asm("mov lr, %0" : : "r"(current_process->lr));
+  set_tick_and_enable_timer();
+
+
   __asm("pop {r0-r12}");
-  __asm("bx lr");
-  
+  ENABLE_IRQ();
+
+  __asm("rfeia sp!"); // we're writing back into the Rn registers so we use '!'
 }
 
 int create_process(func_t f, void *args, unsigned int stack_size) {

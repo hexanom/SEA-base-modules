@@ -21,8 +21,7 @@ struct pcb_s {
   
   func_t entry_point;
   void* args;
-  
-  unsigned int lr;
+
   unsigned int sp;
 };
 
@@ -34,6 +33,6 @@ int create_process(func_t f, void *args, unsigned int stack_size);
 void start_sched();
 void start_current_process();
 void elect();
-void __attribute__ ((naked)) ctx_switch();
+void ctx_switch_from_irq();
 
 #endif
