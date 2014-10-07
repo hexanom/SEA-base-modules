@@ -23,6 +23,7 @@ struct pcb_s {
   enum process_state state;
   struct ctx_s* ctx;
   struct pcb_s* next_pcb;
+  void* args;
 };
 
 struct ctx_s* current_ctx;

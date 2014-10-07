@@ -3,7 +3,7 @@
 
 void funcA() {
   int cptA = 0;
-  while(1) {
+  while(cptA < 0) {
     cptA ++;
     ctx_switch();
   }

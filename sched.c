@@ -10,8 +10,9 @@ void init_ctx(struct ctx_s* ctx, func_t f, unsigned int stack_size) {
   ctx->sp = ((unsigned int)phyAlloc_alloc(STACK_SIZE)) + STACK_SIZE - 1 - 13;
 }
 
-void init_pcb(struct pcb_s* pcb, struct ctx_s* ctx) {
+void init_pcb(struct pcb_s* pcb, void* args, struct ctx_s* ctx) {
   pcb->ctx = ctx;
+  pcb->args = args;
   pcb->state = NEW;
   
   if(last_pcb != NULL) {
@@ -25,11 +26,13 @@ void init_pcb(struct pcb_s* pcb, struct ctx_s* ctx) {
 }
 
 void start_current_process() {
-  ((func_t)(current_process->ctx->lr))();
+  ((func_t)(current_process->ctx->lr))(current_process->args);
 }
 
 void elect() {
-  current_process = current_process->next_pcb;
+  do {
+    current_process = current_process->next_pcb;
+  } while(current_process->state != READY);
 }
 
 void start_sched() {
@@ -42,11 +45,13 @@ void __attribute__ ((naked)) ctx_switch() {
   __asm("push {r0-r12}");
   __asm("mov %0, sp" : "=r"(current_process->ctx->sp));
   __asm("mov %0, lr" : "=r"(current_process->ctx->lr));
+  current_process->state = READY;
 
   // 2. Request new process
   elect();
 
   // 3. Restore context
+  current_process->state = RUNNING;
   __asm("mov sp, %0" : : "r"(current_process->ctx->sp));
   __asm("mov lr, %0" : : "r"(current_process->ctx->lr));
   __asm("pop {r0-r12}");
@@ -58,7 +63,7 @@ int create_process(func_t f, void *args, unsigned int stack_size) {
   struct pcb_s* pcb = phyAlloc_alloc(sizeof(struct pcb_s));
   
   init_ctx(ctx, f, stack_size);
-  init_pcb(pcb, ctx);
+  init_pcb(pcb, args, ctx);
   
   return 0; // ?
 }
