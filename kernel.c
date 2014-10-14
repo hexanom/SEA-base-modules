@@ -10,7 +10,7 @@ void funcA() {
 
 void funcB() {
   int cptB = 1;
-  while(1) {
+  while(0) {
     cptB += 2 ;
   }
 }

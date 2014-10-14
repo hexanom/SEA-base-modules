@@ -38,6 +38,24 @@ void add_pcb(struct pcb_s* pcb) {
 void start_current_process() {
   current_process->state = RUNNING;
   current_process->entry_point(current_process->args);
+  DISABLE_IRQ();
+  // set as done
+  current_process->state = DONE;
+  // close loop
+  struct pcb_s* next_pcb = current_process->next_pcb;
+  struct pcb_s* walk_pcb = next_pcb;
+  while(walk_pcb->next_pcb != current_process) {
+    walk_pcb = walk_pcb->next_pcb;
+  }
+  walk_pcb->next_pcb = next_pcb;
+  // dealloc
+  current_process->sp += (1 + 1 + SAVED_REGISTERS) * WORD_SIZE;
+  current_process->sp -= STACK_SIZE;
+  phyAlloc_free((void*) current_process->sp, STACK_SIZE);
+  phyAlloc_free(current_process, sizeof(struct pcb_s));
+
+  set_tick_and_enable_timer();
+  ENABLE_IRQ();
 }
 
 void elect() {
